@@ -14,8 +14,8 @@ def index():
 @app.route('/get/', defaults={'path': ''})
 @app.route('/get/<path:path>')
 def proxy(path):
-    return get(f'{path}').content
+    return get(f'{path}', headers={'cookie': 'POESESSID=5fac1b643f65f2591d27a0ab8a2bd345'}).content
 
 
 if __name__ == '__main__':
-    app.run(threaded=True, host='0.0.0.0', port=80)
+    app.run(threaded=True, host='0.0.0.0', port=5000)
