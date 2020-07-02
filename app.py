@@ -17,7 +17,7 @@ def index():
 @app.route('/get/<path:path>')
 def proxy(path):
     s = requests.Session()
-    s.get(f'{path}')
+    # s.get(f'{path}')
 
     s.cookies.set('POESESSID', None)
     s.cookies.set('POESESSID', "xxx")
