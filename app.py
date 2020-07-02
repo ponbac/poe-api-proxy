@@ -6,6 +6,7 @@ from requests import get
 from requests import cookies
 
 app = Flask(__name__)
+CORS(app)
 
 
 @app.route('/')
