@@ -20,7 +20,7 @@ def proxy(path):
     # s.get(f'{path}')
 
     s.cookies.set('POESESSID', None)
-    s.cookies.set('POESESSID', "xxx")
+    s.cookies.set('POESESSID', "5fac1b643f65f2591d27a0ab8a2bd345")
 
     # cookie_obj = requests.cookies.create_cookie(domain='pathofexile.com', name='POESESSID', value='xxx')
     # s.cookies.set_cookie(cookie_obj)
