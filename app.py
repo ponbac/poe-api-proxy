@@ -23,8 +23,8 @@ def index():
 def proxy(path):
     s = requests.Session()
 
-    # if (path == NINJA_CURRENCY_URL):
-        # return get_ninja_file(request.args.get('type'))
+    if (path == NINJA_CURRENCY_URL):
+        return get_ninja_file(request.args.get('type'))
     # s.get(f'{path}')
 
     s.cookies.set('POESESSID', None)
