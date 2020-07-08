@@ -1,11 +1,10 @@
 import os
-from flask import Flask
-from flask import request
-from flask import send_file, send_from_directory, safe_join, abort
+from flask import Flask, request, send_file, send_from_directory, safe_join, abort
 from flask_cors import CORS
 import requests
 from requests import get
 from requests import cookies
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 app.config.from_object("config.Config")
@@ -13,6 +12,31 @@ CORS(app)
 
 NINJA_CURRENCY_URL = 'https://poe.ninja/api/data/currencyoverview'
 NINJA_ITEM_URL = 'https://poe.ninja/api/data/itemoverview'
+
+last_updated_dict = {
+    'Currency': None,
+    'Fragment': None,
+    'Oil': None,
+    'Incubator': None,
+    'Scarab': None,
+    'Fossil': None,
+    'Resonator': None,
+    'Essence': None,
+    'DivinationCard': None,
+    'Prophecy': None,
+    'SkillGem': None,
+    'UniqueMap': None,
+    'Map': None,
+    'UniqueJewel': None,
+    'UniqueFlask': None,
+    'UniqueWeapon': None,
+    'UniqueArmour': None,
+    'Watchstone': None,
+    'UniqueAccessory': None,
+    'DeliriumOrb': None,
+    'Beast': None,
+    'Vial': None,
+}
 
 
 @app.route('/')
@@ -27,15 +51,17 @@ def proxy(path):
 
     # Asks for POENINJA data
     if (path == NINJA_CURRENCY_URL or path == NINJA_ITEM_URL):
+        objectType = request.args.get('type')
         folder_path = app.config['NINJA_DATA']
-        filename = get_ninja_filename(request.args.get('type'))
+        filename = get_ninja_filename(objectType)
         full_path = folder_path + '/' + filename
 
-        if is_not_empty(full_path):
+        if is_not_empty(full_path) and age_is_ok(objectType):
             return send_from_directory(folder_path, filename=filename, as_attachment=False)
         else:
             ninja_data = s.get(path, params=request.args).content
             write_to_file(full_path, ninja_data)
+            last_updated_dict[objectType] = datetime.now()
             return send_from_directory(folder_path, filename=filename, as_attachment=False)
             
 
@@ -44,6 +70,16 @@ def proxy(path):
     s.cookies.set('POESESSID', request.args.get('POESESSID'))
 
     return s.get(path, cookies=s.cookies, params=request.args).content
+
+
+def age_is_ok(type_to_check):
+    if last_updated_dict[type_to_check] is None:
+        return False
+
+    past = last_updated_dict[type_to_check]
+    present = datetime.now()
+
+    return past > (present - timedelta(minutes=app.config['MAX_AGE_NINJA_DATA']))
 
 
 def is_not_empty(fpath):  
