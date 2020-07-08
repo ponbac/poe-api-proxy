@@ -91,8 +91,8 @@ def get_ninja_filename(type):
         file = 'unique_flask.json'
     elif type == 'UniqueWeapon':
         file = 'unique_weapon.json'
-    elif type == 'UniqueArmor':
-        file = 'unique_armor.json'
+    elif type == 'UniqueArmour':
+        file = 'unique_armour.json'
     elif type == 'Watchstone':
         file = 'watchstone.json'
     elif type == 'UniqueAccessory':
