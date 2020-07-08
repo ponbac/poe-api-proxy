@@ -1,3 +1,4 @@
+import os
 from flask import Flask
 from flask import request
 from flask import send_file, send_from_directory, safe_join, abort
@@ -13,6 +14,7 @@ CORS(app)
 NINJA_CURRENCY_URL = 'https://poe.ninja/api/data/currencyoverview'
 NINJA_ITEM_URL = 'https://poe.ninja/api/data/itemoverview'
 
+
 @app.route('/')
 def index():
     return "<h1>/get/(your-url) to get some cool data</h1>"
@@ -23,33 +25,86 @@ def index():
 def proxy(path):
     s = requests.Session()
 
-    if (path == NINJA_CURRENCY_URL):
-        return get_ninja_file(request.args.get('type'))
-    # s.get(f'{path}')
+    # Asks for POENINJA data
+    if (path == NINJA_CURRENCY_URL or path == NINJA_ITEM_URL):
+        folder_path = app.config['NINJA_DATA']
+        filename = get_ninja_filename(request.args.get('type'))
+        full_path = folder_path + '/' + filename
 
+        if is_not_empty(full_path):
+            return send_from_directory(folder_path, filename=filename, as_attachment=False)
+        else:
+            ninja_data = s.get(path, params=request.args).content
+            write_to_file(full_path, ninja_data)
+            return send_from_directory(folder_path, filename=filename, as_attachment=False)
+            
+
+    # Asks for everything else
     s.cookies.set('POESESSID', None)
     s.cookies.set('POESESSID', request.args.get('POESESSID'))
-
-    # cookie_obj = requests.cookies.create_cookie(domain='pathofexile.com', name='POESESSID', value='xxx')
-    # s.cookies.set_cookie(cookie_obj)
-
-    # print(s.cookies)
-    # print(f'{path}')
-    # print(request.args)
 
     return s.get(path, cookies=s.cookies, params=request.args).content
 
 
-def get_ninja_file(type):
+def is_not_empty(fpath):  
+    return os.path.isfile(fpath) and os.path.getsize(fpath) > 0
+
+
+def write_to_file(fpath, data_to_write):
+    f = open(fpath,"w+")
+    f.write(data_to_write.decode('utf-8'))
+    f.close
+
+
+def get_ninja_filename(type):
     file = ''
 
     if type == 'Currency':
         file = 'currency.json'
     elif type == 'Fragment':
         file = 'fragment.json'
+    elif type == 'Oil':
+        file = 'oil.json'
+    elif type == 'Incubator':
+        file = 'incubator.json'
+    elif type == 'Scarab':
+        file = 'scarab.json'
+    elif type == 'Fossil':
+        file = 'fossil.json'
+    elif type == 'Resonator':
+        file = 'resonator.json'
+    elif type == 'Essence':
+        file = 'essence.json'
+    elif type == 'DivinationCard':
+        file = 'divination_card.json'
+    elif type == 'Prophecy':
+        file = 'prophecy.json'
+    elif type == 'SkillGem':
+        file = 'skill_gem.json'
+    elif type == 'UniqueMap':
+        file = 'unique_map.json'
+    elif type == 'Map':
+        file = 'map.json'
+    elif type == 'UniqueJewel':
+        file = 'unique_jewel.json'
+    elif type == 'UniqueFlask':
+        file = 'unique_flask.json'
+    elif type == 'UniqueWeapon':
+        file = 'unique_weapon.json'
+    elif type == 'UniqueArmor':
+        file = 'unique_armor.json'
+    elif type == 'Watchstone':
+        file = 'watchstone.json'
+    elif type == 'UniqueAccessory':
+        file = 'unique_accessory.json'
+    elif type == 'DeliriumOrb':
+        file = 'delirium_orb.json'
+    elif type == 'Beast':
+        file = 'beast.json'
+    elif type == 'Vial':
+        file = 'vial.json'
 
-    # print('Serving local file!')
-    return send_from_directory(app.config["NINJA_DATA"], filename=file, as_attachment=False) # Maybe remove as attachment
+    return file
 
 
 if __name__ == '__main__':
