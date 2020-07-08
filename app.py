@@ -48,6 +48,7 @@ def get_ninja_file(type):
     elif type == 'Fragment':
         file = 'fragment.json'
 
+    print('Serving local file!')
     return send_from_directory(app.config["NINJA_DATA"], filename=file, as_attachment=False) # Maybe remove as attachment
 
 
