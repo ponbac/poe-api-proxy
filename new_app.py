@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -9,17 +9,24 @@ from pydantic import BaseModel
 
 # to get a string like this run:
 # openssl rand -hex 32
-SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+SECRET_KEY = "ddb4817c2d6c50b9b09c757d8fe018291a70ed41174d29358a89a10dd0a9f012"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
 fake_users_db = {
-    "johndoe": {
-        "username": "johndoe",
-        "full_name": "John Doe",
-        "email": "johndoe@example.com",
-        "hashed_password": "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",
+    "spatii": {
+        "username": "spatii",
+        "accountname": "Spatii123",
+        "poesessid": "e26b33d5fc958c26857ed1cad701a466",
+        "hashed_password": "pass",
+        "disabled": False,
+    },
+    "pontus": {
+        "username": "pontus",
+        "accountname": "Zedimus",
+        "poesessid": "1673a5cdaf799961da0379e714ac83f2",
+        "hashed_password": "pass",
         "disabled": False,
     }
 }
@@ -36,8 +43,8 @@ class TokenData(BaseModel):
 
 class User(BaseModel):
     username: str
-    email: Optional[str] = None
-    full_name: Optional[str] = None
+    accountname: Optional[str] = None
+    poesessid: Optional[str] = None
     disabled: Optional[bool] = None
 
 
@@ -54,10 +61,12 @@ app = FastAPI()
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
+    # return plain_password == hashed_password
 
 
 def get_password_hash(password):
     return pwd_context.hash(password)
+    # return password
 
 
 def get_user(db, username: str):
@@ -112,9 +121,40 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     return current_user
 
 
-@app.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(fake_users_db, form_data.username, form_data.password)
+@app.post("/register", response_model=User)
+async def register(username: str = Form(...), password: str = Form(...), accountname: str = Form(...), poesessid: str = Form(...)):
+    user = get_user(fake_users_db, username)
+    if user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already in use"
+        )
+    if len(username) < 3 or len(password) < 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username and password has to be over three characters long"
+        )
+
+    user = UserInDB(
+        username=username,
+        accountname=accountname,
+        poesessid=poesessid,
+        disabled=False,
+        hashed_password=get_password_hash(password),
+    )
+
+    dict_entry = {username: user.dict()}
+
+    fake_users_db.update(dict_entry)
+    print(fake_users_db)
+
+    return user
+
+
+@ app.post("/token", response_model=Token)
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm=Depends()):
+    user = authenticate_user(
+        fake_users_db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -128,11 +168,11 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/users/me/", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
+@ app.get("/users/me/", response_model=User)
+async def read_users_me(current_user: User=Depends(get_current_active_user)):
     return current_user
 
 
-@app.get("/users/me/items/")
-async def read_own_items(current_user: User = Depends(get_current_active_user)):
+@ app.get("/users/me/items/")
+async def read_own_items(current_user: User=Depends(get_current_active_user)):
     return [{"item_id": "Foo", "owner": current_user.username}]
