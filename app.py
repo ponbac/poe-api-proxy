@@ -3,10 +3,10 @@ from typing import Optional
 from requests import get
 from requests.sessions import Session
 
-from fastapi import Depends, FastAPI, HTTPException, status, Form
+from fastapi import Depends, FastAPI, HTTPException, status, Form, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse, StreamingResponse
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -309,7 +309,7 @@ async def get_ninja_pricing(type: str = 'Currency', league: str = 'Harvest'):
     if is_not_empty(full_path) and age_is_ok(type):
         return FileResponse(full_path)
     else:
-        category = NINJA_CURRENCY_URL if type == 'Currency' or type == 'Fragments' else NINJA_ITEM_URL
+        category = NINJA_CURRENCY_URL if type == 'Currency' or type == 'Fragment' else NINJA_ITEM_URL
         ninja_data = get(category, params={'league':  league, 'type': type}).content
         write_to_file(full_path, ninja_data)
         last_updated_dict[type] = datetime.now()
@@ -328,3 +328,9 @@ async def get_stash_tab(league: str = 'Harvest', tab: int = 0, account: str = 'p
 
     return HTMLResponse(content=tab_data)
 
+
+@ app.get("/image")
+async def get_stash_tab(path: str = 'https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyUpgradeMagicToRare.png?v=1187a8511b47b35815bd75698de1fa2a&w=1&h=1&scale=1'):
+    data = get(path).content
+
+    return Response(content=data, media_type='image/png')
