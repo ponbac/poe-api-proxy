@@ -225,49 +225,49 @@ def get_ninja_filename(type):
     file = ''
 
     if type == 'Currency':
-        file = 'currency.json'
+        file = 'currency.html'
     elif type == 'Fragment':
-        file = 'fragment.json'
+        file = 'fragment.html'
     elif type == 'Oil':
         file = 'oil.json'
     elif type == 'Incubator':
-        file = 'incubator.json'
+        file = 'incubator.html'
     elif type == 'Scarab':
-        file = 'scarab.json'
+        file = 'scarab.html'
     elif type == 'Fossil':
-        file = 'fossil.json'
+        file = 'fossil.html'
     elif type == 'Resonator':
-        file = 'resonator.json'
+        file = 'resonator.html'
     elif type == 'Essence':
-        file = 'essence.json'
+        file = 'essence.html'
     elif type == 'DivinationCard':
-        file = 'divination_card.json'
+        file = 'divination_card.html'
     elif type == 'Prophecy':
-        file = 'prophecy.json'
+        file = 'prophecy.html'
     elif type == 'SkillGem':
-        file = 'skill_gem.json'
+        file = 'skill_gem.html'
     elif type == 'UniqueMap':
-        file = 'unique_map.json'
+        file = 'unique_map.html'
     elif type == 'Map':
-        file = 'map.json'
+        file = 'map.html'
     elif type == 'UniqueJewel':
-        file = 'unique_jewel.json'
+        file = 'unique_jewel.html'
     elif type == 'UniqueFlask':
-        file = 'unique_flask.json'
+        file = 'unique_flask.html'
     elif type == 'UniqueWeapon':
-        file = 'unique_weapon.json'
+        file = 'unique_weapon.html'
     elif type == 'UniqueArmour':
-        file = 'unique_armour.json'
+        file = 'unique_armour.html'
     elif type == 'Watchstone':
-        file = 'watchstone.json'
+        file = 'watchstone.html'
     elif type == 'UniqueAccessory':
-        file = 'unique_accessory.json'
+        file = 'unique_accessory.html'
     elif type == 'DeliriumOrb':
-        file = 'delirium_orb.json'
+        file = 'delirium_orb.html'
     elif type == 'Beast':
-        file = 'beast.json'
+        file = 'beast.html'
     elif type == 'Vial':
-        file = 'vial.json'
+        file = 'vial.html'
 
     return file
 
