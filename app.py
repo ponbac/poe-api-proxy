@@ -189,6 +189,7 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 
 # PoE stash, pricing, and caching related methods:
 
+CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 NINJA_CURRENCY_URL = 'https://poe.ninja/api/data/currencyoverview'
 NINJA_ITEM_URL = 'https://poe.ninja/api/data/itemoverview'
 POE_STASH_URL = 'https://www.pathofexile.com/character-window/get-stash-items'
@@ -286,9 +287,13 @@ def is_not_empty(fpath):
     return os.path.isfile(fpath) and os.path.getsize(fpath) > 0
 
 
-def write_to_file(fpath, data_to_write):
-    f = open(fpath, "w+")
-    f.write(data_to_write.decode('utf-8'))
+def write_to_file(fpath, data_to_write, isImage = False):
+    if isImage:
+        f = open(fpath, "wb")
+        f.write(data_to_write)
+    else:
+        f = open(fpath, "w+")
+        f.write(data_to_write.decode('utf-8'))
     f.close
     print(f'Wrote to {fpath}')
 
@@ -301,8 +306,7 @@ async def get_ninja_pricing(type: str = 'Currency', league: str = 'Harvest'):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid item type"
         )
-    folder_path = os.path.dirname(
-        os.path.realpath(__file__)) + '/cached_ninja_data'
+    folder_path = CURRENT_DIR + '/cached_ninja_data'
 
     full_path = folder_path + '/' + ninja_file
 
@@ -330,7 +334,21 @@ async def get_stash_tab(league: str = 'Harvest', tab: int = 0, account: str = 'p
 
 
 @ app.get("/image")
-async def get_stash_tab(path: str = 'https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyUpgradeMagicToRare.png?v=1187a8511b47b35815bd75698de1fa2a&w=1&h=1&scale=1'):
-    data = get(path).content
+async def get_icon(path: str = 'https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyUpgradeMagicToRare.png?v=1187a8511b47b35815bd75698de1fa2a&w=1&h=1&scale=1'):
+    if not path.split('/Art')[0] == 'https://web.poecdn.com/image':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid image link"
+        )
 
-    return Response(content=data, media_type='image/png')
+    file_name = path.split('?')[0].split('/')[-1]
+    folder_path = CURRENT_DIR + '/cached_images'
+
+    full_path = folder_path + '/' + file_name
+
+    if is_not_empty(full_path):
+        return FileResponse(full_path)
+    else:
+        image = get(path).content
+        write_to_file(full_path, image, isImage=True)
+        return Response(content=image, media_type='image/png')
