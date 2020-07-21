@@ -3,14 +3,13 @@
 # poe-api-proxy/app.py: 9
 fastapi == 0.60.0
 
-# poe-api-proxy/app.py: 11
-passlib == 1.7.2
-
 # poe-api-proxy/app.py: 12
 pydantic == 1.6.1
 
-# poe-api-proxy/app.py: 10
-python_jose == 3.1.0
-
 # poe-api-proxy/app.py: 3,4
 requests == 2.23.0
+
+uvicorn
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
