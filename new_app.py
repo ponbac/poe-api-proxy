@@ -1,11 +1,17 @@
 from datetime import datetime, timedelta
 from typing import Optional
+from requests import get
+from requests.sessions import Session
 
 from fastapi import Depends, FastAPI, HTTPException, status, Form
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
+import os
+
 
 # to get a string like this run:
 # openssl rand -hex 32
@@ -57,6 +63,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def verify_password(plain_password, hashed_password):
@@ -121,8 +135,8 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
     return current_user
 
 
-@app.post("/register", response_model=User)
-async def register(username: str = Form(...), password: str = Form(...), accountname: str = Form(...), poesessid: str = Form(...)):
+@ app.post("/register", response_model=User)
+async def register_user(username: str = Form(...), password: str = Form(...), accountname: str = Form(...), poesessid: str = Form(...)):
     user = get_user(fake_users_db, username)
     if user:
         raise HTTPException(
@@ -152,7 +166,7 @@ async def register(username: str = Form(...), password: str = Form(...), account
 
 
 @ app.post("/token", response_model=Token)
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm=Depends()):
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(
         fake_users_db, form_data.username, form_data.password)
     if not user:
@@ -169,10 +183,148 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm=Depends())
 
 
 @ app.get("/users/me/", response_model=User)
-async def read_users_me(current_user: User=Depends(get_current_active_user)):
+async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
 
-@ app.get("/users/me/items/")
-async def read_own_items(current_user: User=Depends(get_current_active_user)):
-    return [{"item_id": "Foo", "owner": current_user.username}]
+# PoE stash, pricing, and caching related methods:
+
+NINJA_CURRENCY_URL = 'https://poe.ninja/api/data/currencyoverview'
+NINJA_ITEM_URL = 'https://poe.ninja/api/data/itemoverview'
+POE_STASH_URL = 'https://www.pathofexile.com/character-window/get-stash-items'
+
+TIME_UNTIL_DATA_IS_OLD = 15 # minutes
+
+last_updated_dict = {
+    'Currency': None,
+    'Fragment': None,
+    'Oil': None,
+    'Incubator': None,
+    'Scarab': None,
+    'Fossil': None,
+    'Resonator': None,
+    'Essence': None,
+    'DivinationCard': None,
+    'Prophecy': None,
+    'SkillGem': None,
+    'UniqueMap': None,
+    'Map': None,
+    'UniqueJewel': None,
+    'UniqueFlask': None,
+    'UniqueWeapon': None,
+    'UniqueArmour': None,
+    'Watchstone': None,
+    'UniqueAccessory': None,
+    'DeliriumOrb': None,
+    'Beast': None,
+    'Vial': None,
+}
+
+
+def get_ninja_filename(type):
+    file = ''
+
+    if type == 'Currency':
+        file = 'currency.json'
+    elif type == 'Fragment':
+        file = 'fragment.json'
+    elif type == 'Oil':
+        file = 'oil.json'
+    elif type == 'Incubator':
+        file = 'incubator.json'
+    elif type == 'Scarab':
+        file = 'scarab.json'
+    elif type == 'Fossil':
+        file = 'fossil.json'
+    elif type == 'Resonator':
+        file = 'resonator.json'
+    elif type == 'Essence':
+        file = 'essence.json'
+    elif type == 'DivinationCard':
+        file = 'divination_card.json'
+    elif type == 'Prophecy':
+        file = 'prophecy.json'
+    elif type == 'SkillGem':
+        file = 'skill_gem.json'
+    elif type == 'UniqueMap':
+        file = 'unique_map.json'
+    elif type == 'Map':
+        file = 'map.json'
+    elif type == 'UniqueJewel':
+        file = 'unique_jewel.json'
+    elif type == 'UniqueFlask':
+        file = 'unique_flask.json'
+    elif type == 'UniqueWeapon':
+        file = 'unique_weapon.json'
+    elif type == 'UniqueArmour':
+        file = 'unique_armour.json'
+    elif type == 'Watchstone':
+        file = 'watchstone.json'
+    elif type == 'UniqueAccessory':
+        file = 'unique_accessory.json'
+    elif type == 'DeliriumOrb':
+        file = 'delirium_orb.json'
+    elif type == 'Beast':
+        file = 'beast.json'
+    elif type == 'Vial':
+        file = 'vial.json'
+
+    return file
+
+
+def age_is_ok(type_to_check):
+    if last_updated_dict[type_to_check] is None:
+        return False
+
+    past = last_updated_dict[type_to_check]
+    present = datetime.now()
+
+    return past > (present - timedelta(minutes=TIME_UNTIL_DATA_IS_OLD))
+
+
+def is_not_empty(fpath):
+    return os.path.isfile(fpath) and os.path.getsize(fpath) > 0
+
+
+def write_to_file(fpath, data_to_write):
+    f = open(fpath, "w+")
+    f.write(data_to_write.decode('utf-8'))
+    f.close
+    print(f'Wrote to {fpath}')
+
+
+@ app.get("/pricing")
+async def get_ninja_pricing(type: str = 'Currency', league: str = 'Harvest'):
+    ninja_file = get_ninja_filename(type)
+    if ninja_file == '':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid item type"
+        )
+    folder_path = os.path.dirname(
+        os.path.realpath(__file__)) + '/cached_ninja_data'
+
+    full_path = folder_path + '/' + ninja_file
+
+    if is_not_empty(full_path) and age_is_ok(type):
+        return FileResponse(full_path)
+    else:
+        category = NINJA_CURRENCY_URL if type == 'Currency' or type == 'Fragments' else NINJA_ITEM_URL
+        ninja_data = get(category, params={'league':  league, 'type': type}).content
+        write_to_file(full_path, ninja_data)
+        last_updated_dict[type] = datetime.now()
+        return HTMLResponse(content=ninja_data)
+
+
+@ app.get("/stash")
+async def get_stash_tab(league: str = 'Harvest', tab: int = 0, account: str = 'poeAccountName', sessid: str = 'PoESessionID'):
+    s = Session()
+
+    # Asks for everything else
+    s.cookies.set('POESESSID', None)
+    s.cookies.set('POESESSID', sessid)
+
+    tab_data = s.get(POE_STASH_URL, cookies=s.cookies ,params={'league':  league, 'tabs': 1, 'tabIndex': tab, 'accountName': account}).content
+
+    return HTMLResponse(content=tab_data)
+
