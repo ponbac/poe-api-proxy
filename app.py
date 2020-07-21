@@ -335,7 +335,7 @@ async def get_stash_tab(league: str = 'Harvest', tab: int = 0, account: str = 'p
 
 @ app.get("/image")
 async def get_icon(path: str = 'https://web.poecdn.com/image/Art/2DItems/Currency/CurrencyUpgradeMagicToRare.png?v=1187a8511b47b35815bd75698de1fa2a&w=1&h=1&scale=1'):
-    if not path.split('/Art')[0] == 'https://web.poecdn.com/image':
+    if not path.split('.com/')[0] == 'https://web.poecdn':
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid image link"
