@@ -341,9 +341,12 @@ async def get_icon(path: str = 'https://web.poecdn.com/image/Art/2DItems/Currenc
             detail="Invalid image link"
         )
 
-    file_name = path.split('?')[0].split('/')[-1]
+    if '/gen/' in path:
+        file_name = path.split('/')[-2] + '.png'
+    else:
+        file_name = path.split('?')[0].split('/')[-1]
+    
     folder_path = CURRENT_DIR + '/cached_images'
-
     full_path = folder_path + '/' + file_name
 
     if is_not_empty(full_path):
