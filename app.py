@@ -3,6 +3,10 @@ from typing import Optional
 from requests import get
 from requests.sessions import Session
 
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import firestore
+
 from fastapi import Depends, FastAPI, HTTPException, status, Form, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,29 +17,20 @@ from pydantic import BaseModel
 import os
 
 
-# to get a string like this run:
+# To get a string like this run:
 # openssl rand -hex 32
 SECRET_KEY = "ddb4817c2d6c50b9b09c757d8fe018291a70ed41174d29358a89a10dd0a9f012"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 
-fake_users_db = {
-    "spatii": {
-        "username": "spatii",
-        "accountname": "Spatii123",
-        "poesessid": "e26b33d5fc958c26857ed1cad701a466",
-        "hashed_password": "pass",
-        "disabled": False,
-    },
-    "pontus": {
-        "username": "pontus",
-        "accountname": "Zedimus",
-        "poesessid": "1673a5cdaf799961da0379e714ac83f2",
-        "hashed_password": "pass",
-        "disabled": False,
-    }
-}
+# Init Firestore
+cred = credentials.Certificate('firebaseKey.json')
+firebase_admin.initialize_app(cred, {
+    'projectId': 'poe-currency-ad0db',
+})
+
+firebase_db = firestore.client()
 
 
 class Token(BaseModel):
@@ -83,14 +78,23 @@ def get_password_hash(password):
     # return password
 
 
-def get_user(db, username: str):
-    if username in db:
-        user_dict = db[username]
-        return UserInDB(**user_dict)
+def get_firebase_user(db, username: str):
+    user_ref = db.collection('users').document(username.lower())
+
+    user = user_ref.get()
+    if user.exists:
+        return UserInDB(**user.to_dict())
 
 
-def authenticate_user(fake_db, username: str, password: str):
-    user = get_user(fake_db, username)
+def create_firebase_user(db, user: UserInDB):
+    users_ref = db.collection('users')
+
+    users_ref.document(user.username.lower()).set({'username': user.username, 'accountname': user.accountname,
+                                           'poesessid': user.poesessid, 'hashed_password': user.hashed_password, 'disabled': user.disabled})
+
+
+def authenticate_user(db, username: str, password: str):
+    user = get_firebase_user(db, username)
     if not user:
         return False
     if not verify_password(password, user.hashed_password):
@@ -123,7 +127,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    user = get_user(fake_users_db, username=token_data.username)
+    user = get_firebase_user(firebase_db, username=token_data.username)
     if user is None:
         raise credentials_exception
     return user
@@ -137,7 +141,7 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 
 @ app.post("/register", response_model=User)
 async def register_user(username: str = Form(...), password: str = Form(...), accountname: str = Form(...), poesessid: str = Form(...)):
-    user = get_user(fake_users_db, username)
+    user = get_firebase_user(firebase_db, username)
     if user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -157,10 +161,7 @@ async def register_user(username: str = Form(...), password: str = Form(...), ac
         hashed_password=get_password_hash(password),
     )
 
-    dict_entry = {username: user.dict()}
-
-    fake_users_db.update(dict_entry)
-    print(fake_users_db)
+    create_firebase_user(firebase_db, user)
 
     return user
 
@@ -168,7 +169,7 @@ async def register_user(username: str = Form(...), password: str = Form(...), ac
 @ app.post("/token", response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(
-        fake_users_db, form_data.username, form_data.password)
+        firebase_db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -187,14 +188,20 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
     return current_user
 
 
-# PoE stash, pricing, and caching related methods:
+@ app.get("/")
+async def index():
+    return HTMLResponse(content='<h3>coolest poe api, /docs for testing</h3>')
+
+
+# TODO: Split this application up into multiple files in a nice way.
+# PoE stash, pricing, and caching related methods below:
 
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 NINJA_CURRENCY_URL = 'https://poe.ninja/api/data/currencyoverview'
 NINJA_ITEM_URL = 'https://poe.ninja/api/data/itemoverview'
 POE_STASH_URL = 'https://www.pathofexile.com/character-window/get-stash-items'
 
-TIME_UNTIL_DATA_IS_OLD = 15 # minutes
+TIME_UNTIL_DATA_IS_OLD = 15  # minutes
 
 last_updated_dict = {
     'Currency': None,
@@ -287,7 +294,7 @@ def is_not_empty(fpath):
     return os.path.isfile(fpath) and os.path.getsize(fpath) > 0
 
 
-def write_to_file(fpath, data_to_write, isImage = False):
+def write_to_file(fpath, data_to_write, isImage=False):
     if isImage:
         f = open(fpath, "wb")
         f.write(data_to_write)
@@ -314,7 +321,8 @@ async def get_ninja_pricing(type: str = 'Currency', league: str = 'Harvest'):
         return FileResponse(full_path)
     else:
         category = NINJA_CURRENCY_URL if type == 'Currency' or type == 'Fragment' else NINJA_ITEM_URL
-        ninja_data = get(category, params={'league':  league, 'type': type}).content
+        ninja_data = get(category, params={
+                         'league':  league, 'type': type}).content
         write_to_file(full_path, ninja_data)
         last_updated_dict[type] = datetime.now()
         return HTMLResponse(content=ninja_data)
@@ -328,7 +336,8 @@ async def get_stash_tab(league: str = 'Harvest', tab: int = 0, account: str = 'p
     s.cookies.set('POESESSID', None)
     s.cookies.set('POESESSID', sessid)
 
-    tab_data = s.get(POE_STASH_URL, cookies=s.cookies ,params={'league':  league, 'tabs': 1, 'tabIndex': tab, 'accountName': account}).content
+    tab_data = s.get(POE_STASH_URL, cookies=s.cookies, params={
+                     'league':  league, 'tabs': 1, 'tabIndex': tab, 'accountName': account}).content
 
     return HTMLResponse(content=tab_data)
 
@@ -345,7 +354,7 @@ async def get_icon(path: str = 'https://web.poecdn.com/image/Art/2DItems/Currenc
         file_name = path.split('/')[-2] + '.png'
     else:
         file_name = path.split('?')[0].split('/')[-1]
-    
+
     folder_path = CURRENT_DIR + '/cached_images'
     full_path = folder_path + '/' + file_name
 
