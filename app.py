@@ -115,9 +115,11 @@ def create_snapshot(db, snapshot: Snapshot):
     snapshots_ref = db.collection('snapshots')
     users_ref = db.collection('users')
 
+    # Add snapshot to snapshots collection
     snapshot_ref = snapshots_ref.document()
     snapshot_ref.set(snapshot.dict())
 
+    # Update latest_snapshot_ref for the user
     users_ref.document(snapshot.username.lower()).update(
         {'latest_snapshot_ref': snapshot_ref.id})
 
@@ -407,6 +409,11 @@ async def get_latest_snapshot(username: str):
         )
 
     latest_snapshot = get_snapshot(firebase_db, user.latest_snapshot_ref)
+    if not latest_snapshot:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This user does not have any snapshots"
+        )
 
     return latest_snapshot
 
