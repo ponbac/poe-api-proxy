@@ -108,7 +108,7 @@ def create_firebase_user(db, user: UserInDB):
     users_ref = db.collection('users')
 
     users_ref.document(user.username.lower()).set({'username': user.username, 'accountname': user.accountname,
-                                                   'poesessid': user.poesessid, 'hashed_password': user.hashed_password, 'disabled': user.disabled})
+                                                   'poesessid': user.poesessid, 'hashed_password': user.hashed_password, 'disabled': user.disabled, 'friends': []})
 
 
 def create_snapshot(db, snapshot: Snapshot):
@@ -440,6 +440,7 @@ async def add_snapshot(username: str = Form(...), value: int = Form(...)):
 
 @ app.post("/users/me/friends/add", response_model=User)
 async def add_friend_to_current_user(user_to_add: str = Form(...), current_user: UserInDB = Depends(get_current_active_user)):
+    user_to_add = user_to_add.lower()
     user = get_firebase_user(firebase_db, user_to_add)
     if not user:
         raise HTTPException(
