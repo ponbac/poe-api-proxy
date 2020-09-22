@@ -22,7 +22,7 @@ import os
 # EXAMPLE KEY, NOT USED IN PROD!
 SECRET_KEY = "ddb4817c2d6c50b9b09c757d8fe018291a70ed41174d29358a89a10dd0a9f012"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 120
+ACCESS_TOKEN_EXPIRE_MINUTES = 1440
 
 
 # Init Firestore
@@ -344,7 +344,7 @@ def write_to_file(fpath, data_to_write, isImage=False):
 
 
 @ app.get("/pricing")
-async def get_ninja_pricing(type: str = 'Currency', league: str = 'Harvest'):
+async def get_ninja_pricing(type: str = 'Currency', league: str = 'Heist'):
     ninja_file = get_ninja_filename(type)
     if ninja_file == '':
         raise HTTPException(
@@ -367,7 +367,7 @@ async def get_ninja_pricing(type: str = 'Currency', league: str = 'Harvest'):
 
 
 @ app.get("/stash")
-async def get_stash_tab(league: str = 'Harvest', tab: int = 0, account: str = 'poeAccountName', sessid: str = 'PoESessionID'):
+async def get_stash_tab(league: str = 'Heist', tab: int = 0, account: str = 'poeAccountName', sessid: str = 'PoESessionID'):
     s = Session()
 
     # Asks for everything else
